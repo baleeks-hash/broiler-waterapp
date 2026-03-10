@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מחשבון מים - שה"מ 2024</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&display=swap');
+        body { font-family: 'Assistant', sans-serif; background-color: #f1f5f9; }
+        .card { @apply bg-white rounded-3xl shadow-sm border border-slate-200 p-5; }
+        .btn-ratio { @apply flex-1 py-3 rounded-2xl border border-slate-200 font-bold text-slate-500 bg-white transition-all text-sm; }
+        .btn-ratio.active { @apply bg-blue-600 text-white border-blue-600 shadow-md scale-105; }
+        input[type="range"] { @apply w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600; }
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { @apply appearance-none m-0; }
+    </style>
+</head>
+<body class="pb-10">
+
+    <div class="max-w-md mx-auto p-4 space-y-4">
+        <!-- כותרת -->
+        <div class="flex items-center gap-3 py-4">
+            <div class="bg-blue-600 p-3 rounded-2xl text-white shadow-lg">
+                <i data-lucide="droplets"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-extrabold text-slate-800 leading-none">מחשבון מים ללול</h1>
+                <p class="text-[11px] text-blue-600 font-bold mt-1 tracking-wider">נתוני שה"מ 2024 (מעודכן)</p>
+            </div>
+        </div>
+
+        <!-- בחירת יום -->
+        <div class="card">
+            <div class="flex justify-between items-end mb-4">
+                <span class="text-slate-500 text-sm font-semibold">יום גידול</span>
+                <div class="flex items-baseline gap-1">
+                    <span class="text-4xl font-black text-blue-600" id="day-val">1</span>
+                    <span class="text-slate-400 text-xs font-bold">ימים</span>
+                </div>
+            </div>
+            <input type="range" id="day-slider" min="1" max="56" value="1">
+            <div class="flex justify-between mt-2 text-[10px] text-slate-400 font-bold px-1">
+                <span>1</span>
+                <span>14</span>
+                <span>28</span>
+                <span>42</span>
+                <span>56</span>
+            </div>
+        </div>
+
+        <!-- בחירת יחס -->
+        <div class="card">
+            <p class="text-center text-[11px] font-bold text-slate-400 uppercase mb-4 tracking-tight">בחר יחס מים/מזון להשוואה</p>
+            <div class="flex gap-2">
+                <button onclick="setRatio(1.6)" id="r16" class="btn-ratio">1.6</button>
+                <button onclick="setRatio(2.0)" id="r20" class="btn-ratio active">2.0</button>
+                <button onclick="setRatio(2.5)" id="r25" class="btn-ratio">2.5</button>
+            </div>
+        </div>
+
+        <!-- הזנת צריכה -->
+        <div class="card bg-blue-600 border-none shadow-xl">
+            <label class="block text-white text-center text-sm font-bold mb-3 opacity-90">צריכה בפועל (מ"ל לראש)</label>
+            <div class="relative">
+                <input type="number" id="actual-input" inputmode="decimal" placeholder="0.0"
+                       class="w-full p-5 bg-white/15 border border-white/20 rounded-2xl text-center text-4xl font-black text-white outline-none focus:bg-white/25 placeholder:text-white/30">
+            </div>
+        </div>
+
+        <!-- תוצאות השוואה -->
+        <div id="results" class="hidden space-y-4 animate-in fade-in duration-500">
+            <div id="status-banner" class="p-4 rounded-3xl flex items-center gap-4 border-2">
+                <div id="status-icon" class="p-2 bg-white rounded-full shadow-sm"></div>
+                <div class="flex-1">
+                    <p id="status-text" class="font-bold text-sm leading-tight"></p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="card flex flex-col items-center justify-center py-5">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase mb-1">יעד טבלה</span>
+                    <span class="text-2xl font-black text-slate-800" id="target-val">-</span>
+                    <span class="text-[10px] text-slate-400">מ"ל</span>
+                </div>
+                <div class="card flex flex-col items-center justify-center py-5">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase mb-1">סטייה מהיעד</span>
+                    <span class="text-2xl font-black" id="diff-val">-</span>
+                    <span class="text-[10px] text-slate-400" id="diff-label">אחוזים</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- גרף קטן לרקע -->
+        <div class="card p-3 h-32 relative overflow-hidden">
+             <div class="absolute top-3 right-4 text-[10px] font-bold text-slate-300 uppercase">מגמת צריכה (יחס 2.0)</div>
+            <canvas id="chart"></canvas>
+        </div>
+        
+        <p class="text-center text-[10px] text-slate-400 font-medium">המחשבון מבוסס על המלצות שה"מ מאי 2024</p>
+    </div>
+
+    <script>
+        // הנתונים המדויקים מה-PDF שהעלית
+        const tableData = [
+            {d:1,f:18.2,w16:29.2,w20:36.5,w25:45.6}, {d:2,f:21.5,w16:34.4,w20:43.0,w25:53.7},
+            {d:3,f:25.1,w16:40.1,w20:50.2,w25:62.7}, {d:4,f:29.0,w16:46.5,w20:58.1,w25:72.6},
+            {d:5,f:33.3,w16:53.3,w20:66.7,w25:83.3}, {d:6,f:38.0,w16:60.7,w20:75.9,w25:94.9},
+            {d:7,f:42.9,w16:68.6,w20:85.8,w25:107.2}, {d:8,f:48.1,w16:77.0,w20:96.2,w25:120.3},
+            {d:9,f:51.9,w16:83.1,w20:103.8,w25:129.8}, {d:10,f:57.5,w16:91.9,w20:114.9,w25:143.7},
+            {d:11,f:63.2,w16:101.1,w20:126.4,w25:158.0}, {d:12,f:69.1,w16:110.6,w20:138.2,w25:172.8},
+            {d:13,f:75.1,w16:120.2,w20:150.3,w25:187.8}, {d:14,f:81.3,w16:130.0,w20:162.5,w25:203.1},
+            {d:15,f:87.4,w16:139.9,w20:174.8,w25:218.6}, {d:16,f:93.6,w16:149.8,w20:187.2,w25:234.0},
+            {d:17,f:99.8,w16:159.6,w20:199.5,w25:249.4}, {d:18,f:105.9,w16:169.4,w20:211.7,w25:264.7},
+            {d:19,f:111.9,w16:179.0,w20:223.8,w25:279.7}, {d:20,f:117.8,w16:188.5,w20:235.6,w25:294.5},
+            {d:21,f:123.6,w16:197.7,w20:247.2,w25:308.9}, {d:22,f:129.2,w16:206.7,w20:258.4,w25:323.0},
+            {d:23,f:134.6,w16:215.4,w20:269.2,w25:336.5}, {d:24,f:139.8,w16:223.7,w20:279.7,w25:349.6},
+            {d:25,f:144.8,w16:231.7,w20:289.7,w25:362.1}, {d:26,f:149.6,w16:239.4,w20:299.3,w25:374.1},
+            {d:27,f:154.2,w16:246.7,w20:308.4,w25:385.5}, {d:28,f:158.5,w16:253.6,w20:317.0,w25:396.3},
+            {d:29,f:162.6,w16:260.1,w20:325.1,w25:406.4}, {d:30,f:166.4,w16:266.2,w20:332.8,w25:416.0},
+            {d:31,f:170.0,w16:272.0,w20:340.0,w25:425.0}, {d:32,f:173.3,w16:277.4,w20:346.7,w25:433.4},
+            {d:33,f:176.5,w16:282.3,w20:352.9,w25:441.2}, {d:34,f:179.4,w16:287.0,w20:358.7,w25:448.4},
+            {d:35,f:182.0,w16:291.2,w20:364.1,w25:455.1}, {d:36,f:184.5,w16:295.2,w20:369.0,w25:461.2},
+            {d:37,f:186.7,w16:298.8,w20:373.5,w25:466.9}, {d:38,f:188.8,w16:302.1,w20:377.6,w25:472.0},
+            {d:39,f:190.7,w16:305.1,w20:381.3,w25:476.7}, {d:40,f:192.4,w16:307.8,w20:384.7,w25:480.9},
+            {d:41,f:193.9,w16:310.2,w20:387.8,w25:484.7}, {d:42,f:195.3,w16:312.4,w20:390.5,w25:488.2},
+            {d:43,f:196.5,w16:314.4,w20:393.0,w25:491.3}, {d:44,f:197.6,w16:316.2,w20:395.2,w25:494.0},
+            {d:45,f:198.6,w16:317.7,w20:397.1,w25:496.4}, {d:46,f:199.4,w16:319.1,w20:398.8,w25:498.5},
+            {d:47,f:200.2,w16:320.2,w20:400.3,w25:500.4}, {d:48,f:200.8,w16:321.3,w20:401.6,w25:502.0},
+            {d:49,f:201.3,w16:322.2,w20:402.7,w25:503.4}, {d:50,f:201.8,w16:322.9,w20:403.6,w25:504.5},
+            {d:51,f:202.2,w16:323.5,w20:404.4,w25:505.5}, {d:52,f:202.5,w16:324.0,w20:405.0,w25:506.3},
+            {d:53,f:202.8,w16:324.4,w20:405.6,w25:506.9}, {d:54,f:203.0,w16:324.8,w20:406.0,w25:507.4},
+            {d:55,f:203.1,w16:325.0,w20:406.3,w25:507.8}, {d:56,f:203.2,w16:325.2,w20:406.5,w25:508.1}
+        ];
+
+        let currentRatio = 2.0;
+        let chartInstance;
+
+        function setRatio(val) {
+            currentRatio = val;
+            document.querySelectorAll('.btn-ratio').forEach(b => b.classList.remove('active'));
+            document.getElementById('r' + val.toString().replace('.', '')).classList.add('active');
+            update();
+        }
+
+        function update() {
+            const day = parseInt(document.getElementById('day-slider').value);
+            const actualInput = document.getElementById('actual-input').value;
+            const actual = parseFloat(actualInput);
+            const row = tableData[day-1];
+            
+            document.getElementById('day-val').textContent = day;
+            
+            let target;
+            if (currentRatio === 1.6) target = row.w16;
+            else if (currentRatio === 2.5) target = row.w25;
+            else target = row.w20;
+
+            document.getElementById('target-val').textContent = target.toFixed(1);
+
+            if (!isNaN(actual) && actual > 0) {
+                document.getElementById('results').classList.remove('hidden');
+                
+                const diffPercent = ((actual - target) / target) * 100;
+                const diffEl = document.getElementById('diff-val');
+                diffEl.textContent = (diffPercent > 0 ? '+' : '') + diffPercent.toFixed(1) + '%';
+                
+                // צבע לפי סטייה
+                if (Math.abs(diffPercent) > 10) diffEl.className = "text-2xl font-black text-red-500";
+                else diffEl.className = "text-2xl font-black text-emerald-500";
+
+                // יחס בפועל ואזהרות
+                const realRatio = actual / row.f;
+                const banner = document.getElementById('status-banner');
+                const icon = document.getElementById('status-icon');
+                const text = document.getElementById('status-text');
+
+                if (realRatio < 1.6) {
+                    banner.className = "p-4 rounded-3xl flex items-center gap-4 border-2 bg-red-50 border-red-200 text-red-800";
+                    text.innerHTML = "<b>יחס נמוך! (" + realRatio.toFixed(2) + ")</b><br><small>חשש לבעיית בריאות או ממשק.</small>";
+                    icon.innerHTML = '<i data-lucide="alert-triangle" class="text-red-600"></i>';
+                } else if (realRatio > 2.5) {
+                    banner.className = "p-4 rounded-3xl flex items-center gap-4 border-2 bg-orange-50 border-orange-200 text-orange-800";
+                    text.innerHTML = "<b>יחס גבוה! (" + realRatio.toFixed(2) + ")</b><br><small>חשש לנזילות או בזבוז מים.</small>";
+                    icon.innerHTML = '<i data-lucide="droplet" class="text-orange-600"></i>';
+                } else {
+                    banner.className = "p-4 rounded-3xl flex items-center gap-4 border-2 bg-emerald-50 border-emerald-100 text-emerald-800";
+                    text.innerHTML = "<b>תקין (" + realRatio.toFixed(2) + ")</b><br><small>צריכת המים בטווח המומלץ.</small>";
+                    icon.innerHTML = '<i data-lucide="check-circle" class="text-emerald-600"></i>';
+                }
+                lucide.createIcons();
+            } else {
+                document.getElementById('results').classList.add('hidden');
+            }
+            updateChartHighlight(day);
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('chart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: tableData.map(d => d.d),
+                    datasets: [{
+                        data: tableData.map(d => d.w20),
+                        borderColor: '#94a3b8',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        fill: false,
+                        tension: 0.3
+                    }, {
+                        data: tableData.map(d => null), // ימולא בנקודה אחת בלבד
+                        pointRadius: 5,
+                        pointBackgroundColor: '#2563eb',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        showLine: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: { 
+                        x: { display: false }, 
+                        y: { display: false } 
+                    }
+                }
+            });
+        }
+
+        function updateChartHighlight(day) {
+            const highlightData = tableData.map((d, i) => i === day - 1 ? d.w20 : null);
+            chartInstance.data.datasets[1].data = highlightData;
+            chartInstance.update('none');
+        }
+
+        window.onload = () => {
+            initChart();
+            update();
+            lucide.createIcons();
+        };
+
+        document.getElementById('day-slider').oninput = update;
+        document.getElementById('actual-input').oninput = update;
+    </script>
+</body>
+</html>
