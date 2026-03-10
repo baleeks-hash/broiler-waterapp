@@ -5,49 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>מחשבון מים - שה"מ 2024</title>
     
+    <!-- ספריות עיצוב ואייקונים -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&display=swap');
-        body { font-family: 'Assistant', sans-serif; background-color: #f1f5f9; margin: 0; padding: 0; }
-        .card { @apply bg-white rounded-3xl shadow-sm border border-slate-200 p-5; }
+        body { font-family: 'Assistant', sans-serif; background-color: #f8fafc; }
+        .card { @apply bg-white rounded-3xl shadow-sm border border-slate-100 p-5; }
         .btn-ratio { @apply flex-1 py-3 rounded-2xl border border-slate-200 font-bold text-slate-500 bg-white transition-all text-sm; }
-        .btn-ratio.active { @apply bg-blue-700 text-white border-blue-700 shadow-md scale-105; }
+        .btn-ratio.active { @apply bg-blue-700 text-white border-blue-700 shadow-lg scale-105; }
         input[type="range"] { @apply w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-700; }
-        .status-badge { @apply p-4 rounded-3xl flex items-center gap-4 border-2 transition-all; }
     </style>
 </head>
 <body class="pb-10">
 
     <div class="max-w-md mx-auto p-4 space-y-4">
-        <!-- Header -->
-        <div class="flex items-center gap-3 py-2 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-            <div class="bg-blue-700 p-2.5 rounded-2xl text-white">
+        <!-- לוגו וכותרת -->
+        <div class="flex items-center gap-3 py-2">
+            <div class="bg-blue-700 p-2.5 rounded-2xl text-white shadow-lg">
                 <i data-lucide="droplets"></i>
             </div>
             <div>
-                <h1 class="text-xl font-extrabold text-slate-800 leading-none">מחשבון מים פטמים</h1>
-                <p class="text-[10px] text-blue-600 font-bold mt-1 uppercase tracking-tighter">נתוני שה"מ 2024 מעודכנים</p>
+                <h1 class="text-xl font-extrabold text-slate-800 leading-none">מחשבון מים</h1>
+                <p class="text-[10px] text-blue-600 font-bold mt-1 uppercase">שה"מ 2024 - גרסה רשמית</p>
             </div>
         </div>
 
-        <!-- Day Selection -->
+        <!-- בחירת יום -->
         <div class="card">
             <div class="flex justify-between items-end mb-4">
                 <span class="text-slate-500 text-sm font-semibold">יום גידול</span>
                 <div class="flex items-baseline gap-1">
-                    <span class="text-4xl font-black text-blue-700" id="day-display">1</span>
+                    <span class="text-4xl font-black text-blue-700" id="day-val">1</span>
                     <span class="text-slate-400 text-xs font-bold">ימים</span>
                 </div>
             </div>
             <input type="range" id="day-slider" min="1" max="56" value="1">
         </div>
 
-        <!-- Ratio Selection -->
+        <!-- בחירת יחס להשוואה -->
         <div class="card text-center">
-            <p class="text-[11px] font-bold text-slate-400 uppercase mb-3">בחר יחס להשוואה (מ/מ)</p>
+            <p class="text-[11px] font-bold text-slate-400 uppercase mb-3">יחס מים/מזון להשוואה</p>
             <div class="flex gap-2">
                 <button onclick="setRatio(1.6)" id="r16" class="btn-ratio">1.6</button>
                 <button onclick="setRatio(2.0)" id="r20" class="btn-ratio active">2.0</button>
@@ -55,58 +55,42 @@
             </div>
         </div>
 
-        <!-- Actual Input -->
-        <div class="card bg-blue-700 border-none shadow-xl shadow-blue-100">
-            <label class="block text-white text-center text-sm font-bold mb-2 opacity-80">צריכה בפועל (מ"ל/ראש)</label>
-            <input type="number" id="actual-input" inputmode="decimal" placeholder="הזן ערך..."
-                   class="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-center text-4xl font-black text-white outline-none focus:bg-white/20 placeholder:text-white/30">
+        <!-- קלט צריכה -->
+        <div class="card bg-blue-700 border-none shadow-xl">
+            <label class="block text-white text-center text-sm font-bold mb-2 opacity-80">צריכה בפועל (מ"ל לראש)</label>
+            <input type="number" id="actual-input" inputmode="decimal" placeholder="הזן כאן..."
+                   class="w-full p-4 bg-white/10 border border-white/20 rounded-2xl text-center text-4xl font-black text-white outline-none focus:bg-white/20">
         </div>
 
-        <!-- Results Display -->
-        <div id="result-area" class="hidden space-y-4">
-            <div id="status-banner" class="status-badge">
+        <!-- תוצאות -->
+        <div id="results" class="hidden space-y-4">
+            <div id="status-banner" class="p-4 rounded-3xl flex items-center gap-4 border-2">
                 <div id="status-icon"></div>
                 <div>
                     <p id="status-text" class="font-bold text-sm"></p>
-                    <p id="status-subtext" class="text-[11px] opacity-80"></p>
                 </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
-                <div class="card flex flex-col items-center justify-center py-6">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">יעד לפי טבלה</p>
-                    <div class="flex items-baseline gap-1">
-                        <p class="text-2xl font-black text-slate-800" id="target-display">-</p>
-                        <span class="text-[10px] text-slate-400">מ"ל</span>
-                    </div>
+                <div class="card flex flex-col items-center py-4">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase">יעד טבלה</span>
+                    <span class="text-2xl font-black text-slate-800" id="target-val">-</span>
                 </div>
-                <div class="card flex flex-col items-center justify-center py-6">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">סטייה מהיעד</p>
-                    <p class="text-2xl font-black" id="diff-display">-</p>
+                <div class="card flex flex-col items-center py-4">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase">סטייה</span>
+                    <span class="text-2xl font-black" id="diff-val">-</span>
                 </div>
             </div>
         </div>
 
-        <!-- Mini Chart -->
-        <div class="card">
-            <p class="text-[10px] text-slate-400 font-bold uppercase mb-2">גרף מגמה (יחס 2.0)</p>
-            <div class="h-32">
-                <canvas id="chart"></canvas>
-            </div>
-        </div>
-
-        <!-- Bottom Info -->
-        <div class="text-center pb-6">
-            <p class="text-[10px] text-slate-400">
-                מבוסס על טבלת שה"מ 2024 | נבות חקלאי<br>
-                פותח עבור שימוש מקצועי בלבד
-            </p>
+        <div class="card h-40">
+            <canvas id="chart"></canvas>
         </div>
     </div>
 
     <script>
-        // Data from the provided PDF (2024 table)
-        const table = [
+        // כל הנתונים מהטבלה הרשמית 2024
+        const data = [
             {d:1,f:18.2,w16:29.2,w20:36.5,w25:45.6}, {d:2,f:21.5,w16:34.4,w20:43.0,w25:53.7},
             {d:3,f:25.1,w16:40.1,w20:50.2,w25:62.7}, {d:4,f:29.0,w16:46.5,w20:58.1,w25:72.6},
             {d:5,f:33.3,w16:53.3,w20:66.7,w25:83.3}, {d:6,f:38.0,w16:60.7,w20:75.9,w25:94.9},
@@ -137,96 +121,90 @@
             {d:55,f:203.1,w16:325.0,w20:406.3,w25:507.8}, {d:56,f:203.2,w16:325.2,w20:406.5,w25:508.1}
         ];
 
-        let selectedRatio = 2.0;
-        let myChart;
+        let ratio = 2.0;
+        let chart;
 
-        function setRatio(r) {
-            selectedRatio = r;
+        function setRatio(val) {
+            ratio = val;
             document.querySelectorAll('.btn-ratio').forEach(b => b.classList.remove('active'));
-            document.getElementById('r' + r.toString().replace('.','')).classList.add('active');
+            document.getElementById('r' + val.toString().replace('.', '')).classList.add('active');
             update();
         }
 
         function update() {
             const day = parseInt(document.getElementById('day-slider').value);
-            const row = table[day-1];
-            document.getElementById('day-display').textContent = day;
-
-            const target = selectedRatio === 1.6 ? row.w16 : (selectedRatio === 2.0 ? row.w20 : row.w25);
-            document.getElementById('target-display').textContent = target.toFixed(1);
-
             const actual = parseFloat(document.getElementById('actual-input').value);
-            const area = document.getElementById('result-area');
+            const row = data[day-1];
+            
+            document.getElementById('day-val').textContent = day;
+            const target = ratio === 1.6 ? row.w16 : (ratio === 2.0 ? row.w20 : row.w25);
+            document.getElementById('target-val').textContent = target.toFixed(1);
 
-            if (!isNaN(actual) && actual > 0) {
-                area.classList.remove('hidden');
+            if (actual > 0) {
+                document.getElementById('results').classList.remove('hidden');
                 const diff = ((actual - target) / target) * 100;
-                const diffEl = document.getElementById('diff-display');
+                const diffEl = document.getElementById('diff-val');
                 diffEl.textContent = (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
                 diffEl.style.color = Math.abs(diff) > 10 ? '#ef4444' : '#10b981';
 
-                const realRatio = actual / row.f;
+                const r = actual / row.f;
                 const banner = document.getElementById('status-banner');
-                const text = document.getElementById('status-text');
-                const subtext = document.getElementById('status-subtext');
                 const icon = document.getElementById('status-icon');
+                const text = document.getElementById('status-text');
 
-                if (realRatio < 1.6) {
-                    banner.className = "status-badge bg-red-50 border-red-200 text-red-700";
-                    text.textContent = "אזהרה: יחס נמוך מדי (" + realRatio.toFixed(2) + ")";
-                    subtext.textContent = "חשד למחלה, בעיה בתערובת או בטיב המים.";
-                    icon.innerHTML = '<i data-lucide="alert-triangle"></i>';
-                } else if (realRatio > 2.5) {
-                    banner.className = "status-badge bg-orange-50 border-orange-200 text-orange-700";
-                    text.textContent = "אזהרה: יחס גבוה מדי (" + realRatio.toFixed(2) + ")";
-                    subtext.textContent = "חשד לנזילות או בזבוז מים במערכת.";
+                if (r < 1.6) {
+                    banner.className = "p-4 rounded-3xl flex items-center gap-4 border-2 bg-red-50 border-red-200 text-red-700";
+                    text.textContent = "יחס נמוך מדי (" + r.toFixed(2) + ")";
+                    icon.innerHTML = '<i data-lucide="alert-circle"></i>';
+                } else if (r > 2.5) {
+                    banner.className = "p-4 rounded-3xl flex items-center gap-4 border-2 bg-orange-50 border-orange-200 text-orange-700";
+                    text.textContent = "יחס גבוה - בדוק נזילות (" + r.toFixed(2) + ")";
                     icon.innerHTML = '<i data-lucide="droplets"></i>';
                 } else {
-                    banner.className = "status-badge bg-emerald-50 border-emerald-200 text-emerald-700";
-                    text.textContent = "צריכה תקינה (" + realRatio.toFixed(2) + ")";
-                    subtext.textContent = "הלהקה נמצאת בטווח היחס המומלץ.";
-                    icon.innerHTML = '<i data-lucide="check-circle-2"></i>';
+                    banner.className = "p-4 rounded-3xl flex items-center gap-4 border-2 bg-emerald-50 border-emerald-200 text-emerald-700";
+                    text.textContent = "תקין (" + r.toFixed(2) + ")";
+                    icon.innerHTML = '<i data-lucide="check"></i>';
                 }
                 lucide.createIcons();
             } else {
-                area.classList.add('hidden');
+                document.getElementById('results').classList.add('hidden');
             }
             updateChart(day);
         }
 
-        function initChart() {
+        function updateChart(day) {
+            chart.data.datasets[0].pointRadius = data.map((_, i) => i === day-1 ? 6 : 0);
+            chart.update('none');
+        }
+
+        window.onload = () => {
             const ctx = document.getElementById('chart').getContext('2d');
-            myChart = new Chart(ctx, {
+            chart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: table.map(t => t.d),
+                    labels: data.map(d => d.d),
                     datasets: [{
-                        data: table.map(t => t.w20),
+                        data: data.map(d => d.w20),
                         borderColor: '#3b82f6',
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        fill: { target: 'origin', above: 'rgba(59, 130, 246, 0.05)' },
+                        borderWidth: 3,
+                        pointBackgroundColor: '#1d4ed8',
+                        fill: false,
                         tension: 0.4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    plugins: { legend: { display: false } },
                     scales: { x: { display: false }, y: { display: false } }
                 }
             });
-        }
-
-        function updateChart(day) {
-            myChart.data.datasets[0].pointRadius = table.map((_, i) => i === day-1 ? 5 : 0);
-            myChart.data.datasets[0].pointBackgroundColor = '#1d4ed8';
-            myChart.update('none');
-        }
+            update();
+            lucide.createIcons();
+        };
 
         document.getElementById('day-slider').oninput = update;
         document.getElementById('actual-input').oninput = update;
-        window.onload = () => { initChart(); update(); lucide.createIcons(); };
     </script>
 </body>
 </html>
